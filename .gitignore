@@ -1,0 +1,56 @@
+# Ignore node_modules
+node_modules/
+
+# Ignore environment files
+.env
+
+# Ignore build files
+dist/
+build/
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pth
+*.pkl
+*.h5
+*.hdf5
+*.db
+*.sqlite3
+*.egg-info/
+
+# VSCode
+.vscode/
+
+# Uploaded/generated images
+server/uploads/
+server/completeimages/
+
+# Map operation outputs
+Map-Operation/*.pdf
+Map-Operation/*.kml
+Map-Operation/*.geojson
+Map-Operation/bibvewadi-ward/*.geojson
+Map-Operation/Pune/*.geojson
+
+# Ignore model files
+flask-backend/*.pth
+
+# Ignore coverage and test output
+coverage/
+*.cover
+*.coverage
+
+# Ignore package-lock and yarn lock if not used
+package-lock.json
+yarn.lock
