@@ -31,12 +31,29 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = CLIPModel.from_pretrained(MODEL_NAME).to(device).eval()
 processor = CLIPProcessor.from_pretrained(MODEL_NAME)
 
+
+def _features(out):
+    """Projected embedding from get_text_features / get_image_features.
+
+    transformers 4.x returns a bare tensor; 5.x returns a
+    BaseModelOutputWithPooling whose pooler_output is the projected embedding.
+    Verified against CLIPModel.forward: both paths reproduce logits_per_image
+    to within 1e-5.
+    """
+    return out if torch.is_tensor(out) else out.pooler_output
+
+
+def _normalize(t):
+    return t / t.norm(p=2, dim=-1, keepdim=True)
+
+
 # The three prompts never change, so the text tower is pure constant work.
 # Encode once at boot and reuse; per request we only run the vision tower.
 with torch.no_grad():
     _text_inputs = processor(text=PROMPTS, return_tensors="pt", padding=True)
-    _text_features = model.get_text_features(**{k: v.to(device) for k, v in _text_inputs.items()})
-    _text_features = _text_features / _text_features.norm(p=2, dim=-1, keepdim=True)
+    _text_features = _normalize(
+        _features(model.get_text_features(**{k: v.to(device) for k, v in _text_inputs.items()}))
+    )
 
 app = Flask(__name__)
 
@@ -55,8 +72,9 @@ def classify(image: Image.Image) -> dict:
     """Zero-shot classify one image against PROMPTS. Returns percentages."""
     inputs = processor(images=image, return_tensors="pt")
     with torch.no_grad():
-        image_features = model.get_image_features(**{k: v.to(device) for k, v in inputs.items()})
-        image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+        image_features = _normalize(
+            _features(model.get_image_features(**{k: v.to(device) for k, v in inputs.items()}))
+        )
         # Mirrors CLIPModel.forward: logits_per_image is the scaled dot product
         # of the L2-normalised image and text embeddings, so scores match the
         # full-model path the original code used.

@@ -85,3 +85,36 @@ def test_secret_is_enforced_when_configured(client, monkeypatch):
                     content_type="multipart/form-data",
                     headers={"X-Service-Secret": "s3cret"})
     assert r.status_code == 200
+
+
+def test_matches_full_model_path():
+    """The precomputed-text-embedding shortcut must equal CLIPModel.forward.
+
+    classify() runs only the vision tower and reuses text features cached at
+    boot. That is only valid if it reproduces what the original full-model call
+    produced, so this pins the two together. It is also the regression test for
+    the transformers 4.x -> 5.x return-type change: on 5.x get_text_features
+    returns BaseModelOutputWithPooling rather than a bare tensor.
+    """
+    import torch
+    from PIL import Image
+
+    image = Image.open(io.BytesIO(_road(True))).convert("RGB")
+
+    full = clip_app.processor(
+        text=clip_app.PROMPTS, images=image, return_tensors="pt", padding=True,
+    )
+    with torch.no_grad():
+        expected = clip_app.model(
+            **{k: v.to(clip_app.device) for k, v in full.items()}
+        ).logits_per_image.softmax(dim=1)[0]
+
+    got = clip_app.classify(image)
+    actual = [
+        got["clean_street_probability"] / 100,
+        got["garbage_probability"] / 100,
+        got["not_street_probability"] / 100,
+    ]
+
+    for a, b in zip(actual, expected.tolist()):
+        assert a == pytest.approx(b, abs=1e-5)
