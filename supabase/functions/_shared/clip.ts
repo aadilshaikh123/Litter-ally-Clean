@@ -3,9 +3,11 @@ import type { ClipScores } from "./thresholds.ts";
 const CLIP_URL = Deno.env.get("CLIP_SERVICE_URL")!;
 const CLIP_SECRET = Deno.env.get("CLIP_SERVICE_SECRET") ?? "";
 
-// A sleeping HF Space takes ~40s to wake, so the first attempt gets a long
-// budget and one retry rather than failing the user's report.
-const WAKE_TIMEOUT_MS = 90_000;
+// A sleeping HF Space has to re-download the ~605MB of CLIP weights on wake,
+// because the Gradio SDK has no build step to bake them in (that needs a paid
+// Docker Space). Budget generously and retry once rather than failing the
+// user's report.
+const WAKE_TIMEOUT_MS = 150_000;
 
 async function post(blob: Blob, timeoutMs: number): Promise<Response> {
   const form = new FormData();

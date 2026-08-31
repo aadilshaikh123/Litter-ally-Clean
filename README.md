@@ -23,14 +23,17 @@ React (Vite)  ──auth / read / storage──>  Supabase
 |---|---|---|---|
 | Web client | `client/` | Vercel | 100 GB bandwidth/mo |
 | Database, auth, storage, functions | `supabase/` | Supabase | 500 MB DB, 1 GB storage, 50k MAU |
-| CLIP inference | `clip-service/` | HF Spaces (Docker) | 2 vCPU / 16 GB RAM |
+| CLIP inference | `clip-service/` | HF Spaces (Gradio SDK) | 2 vCPU / 16 GB RAM |
 
 Two free-tier behaviours to know about:
 
 - The **Supabase project pauses after 7 days** of zero activity. Unpause it from
   the dashboard.
-- The **HF Space sleeps after 48 h idle** and takes ~40 s to wake. The report
+- The **HF Space sleeps after 48 h idle**. Waking it re-downloads the ~605 MB
+  of CLIP weights, so the first request after a sleep can take ~90 s. The report
   screen shows a "classifier is waking up" message rather than a hung spinner.
+  Docker Spaces (which could bake the weights into the image) require a paid
+  plan, hence the Gradio SDK.
 
 There is no Node/Express service. Supabase provides auth, the database, storage
 and row-level authorization directly, so the only custom server-side code is the
@@ -191,7 +194,7 @@ a muqaddam in another ward.
 
 ```
 client/         React + Vite frontend
-clip-service/   Flask + CLIP, deployed as a Docker Space
+clip-service/   FastAPI + CLIP, deployed as a Gradio Space
 supabase/
   migrations/   Schema, RLS, ward seed
   functions/    submit-report, verify-cleanup

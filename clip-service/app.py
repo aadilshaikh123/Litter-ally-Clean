@@ -3,13 +3,19 @@
 One job: image in, three zero-shot probabilities out. No geo lookup, no
 thresholds, no database - those live in Postgres and the Edge Functions
 respectively, so there is exactly one place each rule is written down.
+
+Deployed as a Hugging Face **Gradio** Space (Docker Spaces are PRO-only). The
+real interface is the plain `POST /predict` route below; Gradio runs on FastAPI
+underneath, so the JSON API and a small demo UI share one server on port 7860.
 """
 import io
 import os
 import hmac
 
+import gradio as gr
 import torch
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, File, Header, UploadFile
+from fastapi.responses import JSONResponse
 from PIL import Image, UnidentifiedImageError
 from transformers import CLIPModel, CLIPProcessor
 
@@ -55,18 +61,6 @@ with torch.no_grad():
         _features(model.get_text_features(**{k: v.to(device) for k, v in _text_inputs.items()}))
     )
 
-app = Flask(__name__)
-
-
-def _authorized(req) -> bool:
-    """Constant-time check of the shared secret.
-
-    The Space URL is public, so without this anyone can burn the free CPU quota.
-    """
-    if not SERVICE_SECRET:
-        return True  # unset => local dev
-    return hmac.compare_digest(req.headers.get("X-Service-Secret", ""), SERVICE_SECRET)
-
 
 def classify(image: Image.Image) -> dict:
     """Zero-shot classify one image against PROMPTS. Returns percentages."""
@@ -89,35 +83,81 @@ def classify(image: Image.Image) -> dict:
     }
 
 
-@app.get("/health")
+# ---------------------------------------------------------------- HTTP API
+
+api = FastAPI(title="Litter-ally Clean CLIP")
+
+
+def _authorized(provided: str | None) -> bool:
+    """Constant-time check of the shared secret.
+
+    The Space URL is public, so without this anyone can burn the free CPU quota.
+    """
+    if not SERVICE_SECRET:
+        return True  # unset => local dev
+    return hmac.compare_digest(provided or "", SERVICE_SECRET)
+
+
+@api.get("/health")
 def health():
     """Cheap liveness probe - no inference, used to wake a sleeping Space."""
-    return jsonify({"status": "ok", "model": MODEL_NAME, "device": str(device)})
+    return {"status": "ok", "model": MODEL_NAME, "device": str(device)}
 
 
-@app.post("/predict")
-def predict():
-    if not _authorized(request):
-        return jsonify({"error": "unauthorized"}), 401
+@api.post("/predict")
+async def predict(
+    image: UploadFile = File(...),
+    x_service_secret: str | None = Header(default=None),
+):
+    if not _authorized(x_service_secret):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    file = request.files.get("image")
-    if file is None:
-        return jsonify({"error": "image is required"}), 400
-
-    raw = file.read(MAX_IMAGE_BYTES + 1)
+    raw = await image.read(MAX_IMAGE_BYTES + 1)
     if len(raw) > MAX_IMAGE_BYTES:
-        return jsonify({"error": "image too large"}), 413
+        return JSONResponse({"error": "image too large"}, status_code=413)
 
     try:
         # Hand the full-resolution image to the processor; it does the correct
         # resize + center-crop itself. Pre-resizing to 224x224 (as the original
-        # did) squashes the aspect ratio before that and degrades the input.
-        image = Image.open(io.BytesIO(raw)).convert("RGB")
+        # did) squashes the aspect ratio first and degrades the input.
+        pil = Image.open(io.BytesIO(raw)).convert("RGB")
     except (UnidentifiedImageError, OSError) as exc:
-        return jsonify({"error": f"could not decode image: {exc}"}), 400
+        return JSONResponse({"error": f"could not decode image: {exc}"}, status_code=400)
 
-    return jsonify(classify(image))
+    return classify(pil)
 
+
+# ------------------------------------------------------------- demo UI
+
+def _ui_classify(img):
+    if img is None:
+        return {}
+    scores = classify(img)
+    return {
+        "clean street": scores["clean_street_probability"] / 100,
+        "garbage / litter": scores["garbage_probability"] / 100,
+        "not a street": scores["not_street_probability"] / 100,
+    }
+
+
+demo = gr.Interface(
+    fn=_ui_classify,
+    inputs=gr.Image(type="pil", label="Street photo"),
+    outputs=gr.Label(num_top_classes=3, label="Zero-shot CLIP"),
+    title="Litter-ally Clean - CLIP classifier",
+    description=(
+        "Zero-shot street-cleanliness classifier. The app calls `POST /predict` "
+        "directly; this page is just a manual check."
+    ),
+    flagging_mode="never",
+)
+
+# Gradio is mounted under the FastAPI app rather than the other way around, so
+# /predict and /health stay plain HTTP routes and the Edge Function needs no
+# knowledge of Gradio's queue protocol.
+app = gr.mount_gradio_app(api, demo, path="/")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))

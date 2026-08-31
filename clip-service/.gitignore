@@ -1,0 +1,7 @@
+# This directory is pushed to Hugging Face as its own repo root, so it needs
+# its own ignore rules - the parent repo's .gitignore does not apply there.
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

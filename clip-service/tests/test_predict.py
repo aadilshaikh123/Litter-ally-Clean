@@ -11,6 +11,7 @@ import io
 import random
 
 import pytest
+from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
 import app as clip_app
@@ -34,22 +35,21 @@ def _road(litter: bool) -> bytes:
 
 @pytest.fixture
 def client():
-    clip_app.app.config["TESTING"] = True
-    with clip_app.app.test_client() as c:
+    # The FastAPI app, not the Gradio Blocks - /predict is a plain HTTP route.
+    with TestClient(clip_app.app) as c:
         yield c
 
 
 def test_health_does_not_run_inference(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.get_json()["status"] == "ok"
+    assert r.json()["status"] == "ok"
 
 
 def test_predict_returns_three_probabilities_summing_to_100(client):
-    r = client.post("/predict", data={"image": (io.BytesIO(_road(True)), "x.jpg")},
-                    content_type="multipart/form-data")
+    r = client.post("/predict", files={"image": ("x.jpg", _road(True), "image/jpeg")})
     assert r.status_code == 200
-    body = r.get_json()
+    body = r.json()
     total = (body["clean_street_probability"] + body["garbage_probability"]
              + body["not_street_probability"])
     assert total == pytest.approx(100.0, abs=0.01)
@@ -58,31 +58,28 @@ def test_predict_returns_three_probabilities_summing_to_100(client):
 
 def test_littered_scores_higher_garbage_than_clean(client):
     def garbage(payload):
-        r = client.post("/predict", data={"image": (io.BytesIO(payload), "x.jpg")},
-                        content_type="multipart/form-data")
-        return r.get_json()["garbage_probability"]
+        r = client.post("/predict", files={"image": ("x.jpg", payload, "image/jpeg")})
+        return r.json()["garbage_probability"]
 
     assert garbage(_road(True)) > garbage(_road(False))
 
 
 def test_missing_image_is_rejected(client):
-    assert client.post("/predict", data={}, content_type="multipart/form-data").status_code == 400
+    # FastAPI returns 422 for a missing required form field.
+    assert client.post("/predict", files={}).status_code in (400, 422)
 
 
 def test_undecodable_image_is_rejected(client):
-    r = client.post("/predict", data={"image": (io.BytesIO(b"not an image"), "x.jpg")},
-                    content_type="multipart/form-data")
+    r = client.post("/predict", files={"image": ("x.jpg", b"not an image", "image/jpeg")})
     assert r.status_code == 400
 
 
 def test_secret_is_enforced_when_configured(client, monkeypatch):
     monkeypatch.setattr(clip_app, "SERVICE_SECRET", "s3cret")
-    r = client.post("/predict", data={"image": (io.BytesIO(_road(True)), "x.jpg")},
-                    content_type="multipart/form-data")
+    r = client.post("/predict", files={"image": ("x.jpg", _road(True), "image/jpeg")})
     assert r.status_code == 401
 
-    r = client.post("/predict", data={"image": (io.BytesIO(_road(True)), "x.jpg")},
-                    content_type="multipart/form-data",
+    r = client.post("/predict", files={"image": ("x.jpg", _road(True), "image/jpeg")},
                     headers={"X-Service-Secret": "s3cret"})
     assert r.status_code == 200
 
