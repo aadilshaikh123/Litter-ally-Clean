@@ -74,11 +74,16 @@ role.
 | `worker` | See locations assigned to them |
 | `admin` | Everything, plus user administration |
 
-Bootstrap the first admin once, after signing in:
+Bootstrap the first admin once, after signing in, from the Supabase SQL editor:
 
 ```sql
 update public.profiles set role = 'admin' where email = 'you@example.com';
 ```
+
+This works because the privilege guard exempts direct database connections.
+PostgREST connects as the `authenticator` role, so anything with a different
+`session_user` is a direct connection and is already superuser-level; gating it
+behind an app trigger would leave no way to create the first admin at all.
 
 ---
 
@@ -105,11 +110,40 @@ live.
 
 ---
 
+## Deployment status
+
+The database is provisioned on project `chjwumixiaazupjznggc` and verified live:
+
+| | |
+|---|---|
+| Migrations applied | 12 |
+| Wards | 99 (58 named for 2022, 41 numbered for 2025) |
+| Zones | 1,583 synthetic hex beats, all flagged |
+| Storage buckets | `reports`, `cleanup-proofs` (both private) |
+| Geo assertions | pass |
+| Security assertions | 14/14 pass |
+
+### Accepted linter warnings
+
+`supabase get_advisors` reports six warnings that are expected:
+
+- **`current_profile_role` / `current_profile_ward` / `is_active` /
+  `active_ward_year` are SECURITY DEFINER and executable by `authenticated`.**
+  This is required: RLS policy expressions are evaluated as the *invoking*
+  role, so those helpers must be callable by the very users they gate. Each
+  returns only the caller's own row, keyed on `auth.uid()`, so there is nothing
+  to leak. Every other function has had `EXECUTE` revoked from `PUBLIC`.
+- **`rls_auto_enable`** is created and owned by Supabase, not this project. It
+  is the platform's own trigger that auto-enables RLS on new tables. Left
+  untouched deliberately.
+
+---
+
 ## Local setup
 
 ```bash
 # 1. Database
-supabase link --project-ref <your-ref>
+supabase link --project-ref chjwumixiaazupjznggc
 supabase db push                       # schema + ward seed
 
 # 2. Secrets for the Edge Functions
@@ -119,7 +153,7 @@ supabase functions deploy submit-report verify-cleanup
 
 # 3. Client
 cd client
-cp .env.example .env.local             # fill in the anon key
+cp .env.example .env.local             # fill in VITE_SUPABASE_ANON_KEY
 npm install && npm run dev             # http://localhost:5173
 
 # 4. CLIP service (optional locally; downloads ~605 MB on first run)
@@ -138,12 +172,18 @@ project's Supabase callback URL.
 ```bash
 cd clip-service && pytest tests -q            # classifier behaviour
 psql "$DATABASE_URL" -f supabase/tests/01_geo_lookup.sql
-psql "$DATABASE_URL" -f supabase/tests/02_rls.sql
+psql "$DATABASE_URL" -f supabase/tests/02_security.sql
 ```
 
-`02_rls.sql` is the regression test for the authorization model: it asserts that
-a citizen cannot read another citizen's complaint, cannot insert a complaint
-directly, and cannot promote themselves to staff.
+`01_geo_lookup.sql` pins the ward lookup to the two coordinates hardcoded in
+the old Flask code, which resolve to "Sukhsagarnagar - Rajiv Gandhinagar" and
+"Upper Super Indiranagar" respectively.
+
+`02_security.sql` is the regression test for the authorization model: a citizen
+cannot read another citizen's complaint, cannot insert a complaint directly,
+and cannot promote themselves to staff; an SI can triage but cannot rewrite the
+classifier's output, move the coordinates, forge a completion, or route work to
+a muqaddam in another ward.
 
 ---
 

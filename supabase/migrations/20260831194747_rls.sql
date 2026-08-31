@@ -51,7 +51,9 @@ returns trigger
 language plpgsql security definer set search_path = ''
 as $$
 begin
-  if public.current_profile_role() = 'admin' then
+  -- The service role bypasses RLS but still fires triggers, so it has to be
+  -- exempted explicitly or server-side tooling cannot assign a staff role.
+  if public.is_service_role() or public.current_profile_role() = 'admin' then
     return new;
   end if;
   if new.role          is distinct from old.role

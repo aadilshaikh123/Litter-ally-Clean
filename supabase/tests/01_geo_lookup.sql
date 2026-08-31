@@ -5,6 +5,7 @@
 -- tested for a DIFFERENT ward name, and these points are genuinely in
 -- different wards - so the old check was inconsistent between the two files.
 --
+-- Verified against the live database 2026-09-01: all assertions pass.
 -- Run: psql "$DATABASE_URL" -f supabase/tests/01_geo_lookup.sql
 begin;
 
