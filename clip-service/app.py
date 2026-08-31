@@ -20,6 +20,7 @@ The API is therefore a Gradio endpoint (`/gradio_api/call/predict`), called
 from the Edge Function with @gradio/client.
 """
 import hmac
+import io
 import os
 
 import gradio as gr
@@ -77,6 +78,30 @@ def _scores(probs: list[float]) -> dict:
     }
 
 
+def _to_pil(image) -> Image.Image:
+    """Coerce whatever Gradio hands us into a PIL image.
+
+    gr.api does NOT run component pre-processing: the UI path receives a PIL
+    image (gr.Image(type="pil") converts it), but an API caller's argument
+    arrives as the raw FileData dict {"path": ..., "meta": ...} pointing at the
+    file the /gradio_api/upload step already wrote server-side.
+    """
+    if isinstance(image, Image.Image):
+        return image
+    if isinstance(image, str):
+        return Image.open(image).convert("RGB")
+    if isinstance(image, dict):
+        src = image.get("path") or image.get("url")
+        if not src:
+            raise gr.Error("image payload has no path", print_exception=False)
+        if src.startswith(("http://", "https://")):
+            import urllib.request
+            with urllib.request.urlopen(src, timeout=30) as resp:
+                return Image.open(io.BytesIO(resp.read())).convert("RGB")
+        return Image.open(src).convert("RGB")
+    raise gr.Error(f"unsupported image payload: {type(image).__name__}", print_exception=False)
+
+
 def _authorized(provided: str | None) -> bool:
     """Constant-time check of the shared secret.
 
@@ -90,20 +115,27 @@ def _authorized(provided: str | None) -> bool:
 
 
 @spaces.GPU(duration=30)
-def predict(image: Image.Image, secret: str = "") -> dict:
+def predict(image: dict, secret: str = "") -> dict:
     """Zero-shot classify one street photo. Returns percentages.
 
     This is the function ZeroGPU detects and the Edge Function calls.
+
+    The `dict` hint is required (gr.api rejects untyped parameters) and is
+    accurate for API callers, who send Gradio's FileData payload. The demo UI
+    calls this function directly in Python with a PIL image, so _to_pil accepts
+    both.
     """
     if not _authorized(secret):
         raise gr.Error("unauthorized", print_exception=False)
     if image is None:
         raise gr.Error("image is required", print_exception=False)
 
+    pil = _to_pil(image)
+
     # Hand the full-resolution image to the processor; it does the correct
     # resize + center-crop itself. Pre-resizing to 224x224 (as the original
     # code did) squashes the aspect ratio first and degrades the input.
-    inputs = processor(images=image, return_tensors="pt")
+    inputs = processor(images=pil, return_tensors="pt")
 
     with torch.no_grad():
         text = _normalize(

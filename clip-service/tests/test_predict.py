@@ -92,3 +92,33 @@ def test_matches_full_model_path():
 
     for a, b in zip(actual, expected.tolist()):
         assert a == pytest.approx(b, abs=1e-5)
+
+
+def test_accepts_gradio_filedata_dict(tmp_path):
+    """API callers hit gr.api, which does NOT run component pre-processing.
+
+    The image therefore arrives as the raw FileData dict pointing at whatever
+    /gradio_api/upload wrote, not as a PIL image. Every earlier test passed a
+    PIL image directly and used a wrong secret, so this path went unexercised
+    until it failed in production with:
+
+        TypeError: only a single or a list of entries is supported
+                   but got type=<class 'dict'>
+    """
+    path = tmp_path / "upload.jpg"
+    _road(True).save(path)
+
+    payload = {"path": str(path), "meta": {"_type": "gradio.FileData"}}
+    body = clip_app.predict(payload, clip_app.SERVICE_SECRET or "")
+
+    assert body["prediction"] in clip_app.PROMPTS
+    total = (body["clean_street_probability"] + body["garbage_probability"]
+             + body["not_street_probability"])
+    assert total == pytest.approx(100.0, abs=0.01)
+
+
+def test_accepts_plain_path_string(tmp_path):
+    path = tmp_path / "upload.jpg"
+    _road(True).save(path)
+    body = clip_app.predict(str(path), clip_app.SERVICE_SECRET or "")
+    assert body["prediction"] in clip_app.PROMPTS
