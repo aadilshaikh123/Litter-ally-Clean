@@ -18,7 +18,9 @@ language plpgsql security definer set search_path = ''
 as $$
 begin
   -- Edge Functions run as service_role and are the only writer of evidence.
-  if (select auth.role()) = 'service_role' then
+  -- service_role bypasses RLS but NOT triggers, so without this exemption
+  -- verify-cleanup could not record its own verification.
+  if public.is_service_role() then
     return new;
   end if;
 

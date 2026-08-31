@@ -79,6 +79,19 @@ create trigger profiles_touch before update on public.profiles
 -- SQL keyword.
 -- ---------------------------------------------------------------------------
 
+create function public.is_service_role()
+returns boolean
+language sql stable set search_path = ''
+as $$
+  -- Read the JWT claim directly. Inside a SECURITY DEFINER function
+  -- current_user is the function owner, not the caller, so it cannot be used
+  -- to identify who is actually calling.
+  select coalesce(
+    current_setting('request.jwt.claim.role', true),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'
+  ) = 'service_role';
+$$;
+
 create function public.current_profile_role()
 returns public.user_role
 language sql stable security definer set search_path = ''
