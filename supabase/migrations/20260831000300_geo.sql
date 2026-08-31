@@ -150,7 +150,12 @@ begin
       partition by w.id order by extensions.st_ymax(g.geom) desc, extensions.st_xmin(g.geom)
     ),
     true,
-    extensions.st_multi(extensions.st_intersection(g.geom, w.geom))
+    -- CollectionExtract(...,3) keeps only the polygonal parts: a hex that
+    -- merely grazes the ward edge can intersect as a point or line, which
+    -- would not cast to MultiPolygon.
+    extensions.st_multi(
+      extensions.st_collectionextract(
+        extensions.st_makevalid(extensions.st_intersection(g.geom, w.geom)), 3))
   from public.wards w
   cross join lateral extensions.st_hexagongrid(cell_size, w.geom) as g
   where w.year = public.active_ward_year()
@@ -199,9 +204,10 @@ begin
     f -> 'properties' ->> name_prop,
     false,
     extensions.st_multi(
-      extensions.st_makevalid(
-        extensions.st_setsrid(extensions.st_geomfromgeojson(f ->> 'geometry'), 4326)
-      )
+      extensions.st_collectionextract(
+        extensions.st_makevalid(
+          extensions.st_setsrid(extensions.st_geomfromgeojson(f ->> 'geometry'), 4326)
+        ), 3)
     )
   from jsonb_array_elements(fc -> 'features') as f
   where f -> 'properties' ->> name_prop is not null
