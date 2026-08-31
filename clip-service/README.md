@@ -5,6 +5,7 @@ colorFrom: green
 colorTo: blue
 sdk: gradio
 sdk_version: 6.26.0
+short_description: Zero-shot street-litter classifier (CPU inference)
 app_file: app.py
 pinned: false
 ---
@@ -13,9 +14,17 @@ pinned: false
 
 Zero-shot street-cleanliness classifier. Stateless: image in, probabilities out.
 
-Deployed as a **Gradio** Space because Docker Spaces require a paid plan.
+Deployed as a **ZeroGPU** Gradio Space: Hugging Face gates all compute Spaces
+behind a paid plan except ZeroGPU, which free accounts may host two of.
+
 Gradio runs on FastAPI underneath, so the real API is mounted as plain HTTP
 routes and the browser UI is only a manual sanity check.
+
+**Inference is CPU-only and never enters a `@spaces.GPU` function.** CLIP
+ViT-B/32 takes ~150ms on CPU, and ZeroGPU quota is billed per *caller* - an
+unauthenticated caller gets 2 minutes of GPU per day. Staying on CPU means zero
+quota and no daily cap. `CLIP_DEVICE` can override the device if that ever
+changes.
 
 | Route | Method | Purpose |
 |---|---|---|

@@ -4,9 +4,17 @@ One job: image in, three zero-shot probabilities out. No geo lookup, no
 thresholds, no database - those live in Postgres and the Edge Functions
 respectively, so there is exactly one place each rule is written down.
 
-Deployed as a Hugging Face **Gradio** Space (Docker Spaces are PRO-only). The
-real interface is the plain `POST /predict` route below; Gradio runs on FastAPI
-underneath, so the JSON API and a small demo UI share one server on port 7860.
+Deployed as a Hugging Face **ZeroGPU** Gradio Space. HF gates all compute
+Spaces behind a paid plan except ZeroGPU, which free accounts may host two of.
+
+The real interface is the plain `POST /predict` route below; Gradio runs on
+FastAPI underneath, so the JSON API and a small demo UI share one server on
+port 7860.
+
+Inference is deliberately CPU-only. CLIP ViT-B/32 is ~150ms on CPU, and
+ZeroGPU quota is charged per *caller* - our Edge Function calls unauthenticated,
+which would cap us at 2 minutes of GPU per day. Never entering a @spaces.GPU
+function means zero quota consumed and no daily limit.
 """
 import io
 import os
@@ -33,7 +41,11 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 SERVICE_SECRET = os.environ.get("CLIP_SERVICE_SECRET")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Explicitly CPU, never auto-detected. On ZeroGPU hardware PyTorch runs in a
+# CUDA *emulation* mode outside @spaces.GPU functions, so torch.cuda.is_available()
+# can return True while no real GPU is attached - auto-detect would place the
+# model on a device that cannot actually execute here.
+device = torch.device(os.environ.get("CLIP_DEVICE", "cpu"))
 model = CLIPModel.from_pretrained(MODEL_NAME).to(device).eval()
 processor = CLIPProcessor.from_pretrained(MODEL_NAME)
 
