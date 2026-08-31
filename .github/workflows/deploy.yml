@@ -40,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Push only clip-service/ to the Space; it is its own repo root there.
+      # The Space is a ZeroGPU Gradio Space - see clip-service/README.md.
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

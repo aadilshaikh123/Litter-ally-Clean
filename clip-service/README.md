@@ -20,11 +20,18 @@ behind a paid plan except ZeroGPU, which free accounts may host two of.
 Gradio runs on FastAPI underneath, so the real API is mounted as plain HTTP
 routes and the browser UI is only a manual sanity check.
 
-**Inference is CPU-only and never enters a `@spaces.GPU` function.** CLIP
-ViT-B/32 takes ~150ms on CPU, and ZeroGPU quota is billed per *caller* - an
-unauthenticated caller gets 2 minutes of GPU per day. Staying on CPU means zero
-quota and no daily cap. `CLIP_DEVICE` can override the device if that ever
-changes.
+Inference runs inside a `@spaces.GPU` function. ZeroGPU **refuses to start a
+Space that has none**, so this is mandatory, not a performance choice - CLIP
+ViT-B/32 would be ~150ms on CPU.
+
+That means a daily GPU quota, billed per *caller*: 2 minutes/day
+unauthenticated, 5 minutes/day for a free account. CLIP is fast, so that is
+roughly 100-300 reports per day before requests start failing until the quota
+resets. The Edge Function surfaces that as a 503 and the report is not lost -
+the uploaded image stays in storage so it can be retried.
+
+`CLIP_DEVICE` overrides device selection for local runs; off-platform the
+decorator is a no-op and everything runs on CPU.
 
 | Route | Method | Purpose |
 |---|---|---|

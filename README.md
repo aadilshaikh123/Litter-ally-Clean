@@ -16,24 +16,30 @@ React (Vite)  ──auth / read / storage──>  Supabase
      │                                            ▲
      └── submit report ──> Edge Function ─────────┘
                                 │
-                                └──> Hugging Face Space (Docker): CLIP /predict
+                                └──> HF ZeroGPU Gradio Space: CLIP predict
 ```
 
 | Component | Lives in | Hosted on | Free tier |
 |---|---|---|---|
 | Web client | `client/` | Vercel | 100 GB bandwidth/mo |
 | Database, auth, storage, functions | `supabase/` | Supabase | 500 MB DB, 1 GB storage, 50k MAU |
-| CLIP inference | `clip-service/` | HF Spaces (Gradio SDK) | 2 vCPU / 16 GB RAM |
+| CLIP inference | `clip-service/` | HF Spaces (ZeroGPU) | 2 free ZeroGPU Spaces; 5 min GPU/day |
 
 Two free-tier behaviours to know about:
 
 - The **Supabase project pauses after 7 days** of zero activity. Unpause it from
   the dashboard.
 - The **HF Space sleeps after 48 h idle**. Waking it re-downloads the ~605 MB
-  of CLIP weights, so the first request after a sleep can take ~90 s. The report
-  screen shows a "classifier is waking up" message rather than a hung spinner.
-  Docker Spaces (which could bake the weights into the image) require a paid
-  plan, hence the Gradio SDK.
+  of CLIP weights, so the first request after a sleep can take a couple of
+  minutes. The report screen shows a "classifier is waking up" message rather
+  than a hung spinner.
+- **ZeroGPU has a daily GPU quota**, billed per caller: 2 min/day
+  unauthenticated, 5 min/day with an `HF_TOKEN` set on the Edge Function.
+  Roughly 100-300 reports per day. Beyond that the Edge Function returns 503
+  and the upload is kept so the report can be retried.
+
+  Every other HF compute Space requires a paid plan, which is why this is a
+  ZeroGPU Gradio Space rather than a Docker one.
 
 There is no Node/Express service. Supabase provides auth, the database, storage
 and row-level authorization directly, so the only custom server-side code is the
@@ -194,7 +200,7 @@ a muqaddam in another ward.
 
 ```
 client/         React + Vite frontend
-clip-service/   FastAPI + CLIP, deployed as a Gradio Space
+clip-service/   Gradio + CLIP, deployed as a ZeroGPU Space
 supabase/
   migrations/   Schema, RLS, ward seed
   functions/    submit-report, verify-cleanup

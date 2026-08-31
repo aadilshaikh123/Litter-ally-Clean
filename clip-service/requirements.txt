@@ -1,9 +1,8 @@
-# CPU-only torch: ~200MB wheel instead of ~2.5GB with the bundled CUDA stack.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.13.0
+# @spaces.GPU is mandatory: ZeroGPU refuses to start a Space without one.
+spaces
+# torch must be a ZeroGPU-supported version: 2.8.0, 2.9.1, 2.10.0 or 2.11.0.
+# The platform validates this and fails with CONFIG_ERROR otherwise.
+torch==2.11.0
 transformers==5.16.1
 pillow==12.3.0
 gradio==6.26.0
-fastapi==0.141.1
-uvicorn==0.52.4
-python-multipart==0.0.32
