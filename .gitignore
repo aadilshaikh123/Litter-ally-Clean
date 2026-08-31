@@ -1,18 +1,20 @@
-# Ignore node_modules
+# Dependencies
 node_modules/
 
-# Ignore environment files
+# Environment files
 .env
+.env.local
+.env.*.local
 
-# Ignore build files
+# Build output
 dist/
 build/
 
-# Ignore logs
+# Logs
 logs/
 *.log
 
-# Ignore system files
+# System files
 .DS_Store
 Thumbs.db
 
@@ -21,36 +23,28 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pth
-*.pkl
-*.h5
-*.hdf5
-*.db
-*.sqlite3
 *.egg-info/
+.venv/
+venv/
 
-# VSCode
+# Model weights (pulled from the HF hub at build time, never committed)
+*.pth
+*.pt
+*.safetensors
+
+# Editors
 .vscode/
+.idea/
 
-# Uploaded/generated images
-server/uploads/
-server/completeimages/
-
-# Map operation outputs
-Map-Operation/*.pdf
-Map-Operation/*.kml
-Map-Operation/*.geojson
-Map-Operation/bibvewadi-ward/*.geojson
-Map-Operation/Pune/*.geojson
-
-# Ignore model files
-flask-backend/*.pth
-
-# Ignore coverage and test output
+# Test/coverage output
 coverage/
-*.cover
+.pytest_cache/
 *.coverage
 
-# Ignore package-lock and yarn lock if not used
-package-lock.json
-yarn.lock
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+
+# NOTE: lockfiles are deliberately committed - reproducible installs on CI/hosts
+# depend on them. Do not re-add package-lock.json / yarn.lock here.
+# NOTE: Map-Operation GeoJSON is seed data and is committed under supabase/seed/.

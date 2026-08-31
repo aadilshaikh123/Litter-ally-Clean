@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Semantic tokens. Defined once here; every component reads them through the
+   Tailwind theme, so light/dark is a single swap rather than dark: variants
+   sprinkled across every screen. */
+@layer base {
+  :root {
+    --surface: 255 255 255;
+    --surface-muted: 246 247 245;
+    --surface-raised: 255 255 255;
+    --content: 24 32 28;
+    --content-muted: 82 94 87;
+    --content-subtle: 128 140 133;
+    --line: 226 231 228;
+  }
+
+  .dark {
+    --surface: 16 20 18;
+    --surface-muted: 24 30 27;
+    --surface-raised: 30 37 33;
+    --content: 236 240 238;
+    --content-muted: 165 176 170;
+    --content-subtle: 124 136 130;
+    --line: 48 58 52;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    @apply bg-surface-muted text-content font-sans antialiased;
+    /* Respect notches on the phone-first flows. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Visible focus everywhere, not just on the inputs that happened to get it. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface;
+  }
+}
+
+@layer utilities {
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+  }
+}

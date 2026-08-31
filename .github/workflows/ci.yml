@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+        working-directory: client
+      - run: npm run lint
+        working-directory: client
+      - run: npm run build
+        working-directory: client
+        env:
+          # Build-time only; the real values are injected by Vercel.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder
+
+  sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Parses every migration with the real Postgres grammar. Cheap, and it
+      # catches syntax errors before they reach the database.
+      - run: pip install pglast
+      - run: |
+          python - <<'PY'
+          import glob, sys, pglast
+          bad = False
+          for f in sorted(glob.glob("supabase/**/*.sql", recursive=True)):
+              try:
+                  pglast.parse_sql(open(f, encoding="utf-8").read())
+                  print("ok  ", f)
+              except Exception as e:
+                  bad = True
+                  print("FAIL", f, e)
+          sys.exit(1 if bad else 0)
+          PY
+
+  clip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r clip-service/requirements.txt pytest
+      - name: Cache CLIP weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: clip-vit-base-patch32
+      - run: pytest tests -q
+        working-directory: clip-service
