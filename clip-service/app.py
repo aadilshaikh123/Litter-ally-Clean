@@ -57,9 +57,10 @@ def classify(image: Image.Image) -> dict:
     with torch.no_grad():
         image_features = model.get_image_features(**{k: v.to(device) for k, v in inputs.items()})
         image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
-        # Same scaling CLIPModel applies internally, so scores match the
+        # Mirrors CLIPModel.forward: logits_per_image is the scaled dot product
+        # of the L2-normalised image and text embeddings, so scores match the
         # full-model path the original code used.
-        logits = model.logit_scale.exp() * image_features @ _text_features.t()
+        logits = model.logit_scale.exp() * (image_features @ _text_features.t())
         probs = logits.softmax(dim=1)[0]
 
     return {
