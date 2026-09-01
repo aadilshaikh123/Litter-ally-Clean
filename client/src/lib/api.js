@@ -81,9 +81,15 @@ export const muqaddamComplaints = () =>
   supabase.from("complaints").select(COMPLAINT_COLS)
     .neq("status", "completed").order("created_at", { ascending: false });
 
-export const muqaddamRoster = (wardId) =>
-  supabase.from("profiles").select("id, full_name, email, identifier, si_identifier")
-    .eq("role", "muqaddam").eq("ward_id", wardId);
+/** Muqaddams for one ward, or every ward when wardId is null (admins have no
+ *  ward of their own). ward_id is selected so the caller can narrow the list to
+ *  a given complaint's ward - the database refuses an assignment across wards. */
+export const muqaddamRoster = (wardId) => {
+  const q = supabase.from("profiles")
+    .select("id, full_name, email, identifier, si_identifier, ward_id")
+    .eq("role", "muqaddam").eq("status", "active");
+  return wardId == null ? q : q.eq("ward_id", wardId);
+};
 
 export const workerRoster = (wardId) =>
   supabase.from("profiles").select("id, full_name, email").eq("role", "worker").eq("ward_id", wardId);

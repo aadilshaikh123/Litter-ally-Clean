@@ -52,10 +52,15 @@ export default function SupervisorDashboard() {
 
   useEffect(load, [load]);
 
+  // An admin has no ward of their own, so they load every muqaddam and the
+  // dropdown is narrowed per complaint below. Bailing out on a null ward left
+  // the list permanently empty and made triage impossible for admins.
   useEffect(() => {
-    if (!profile?.ward_id) return;
-    muqaddamRoster(profile.ward_id).then(({ data }) => setRoster(data ?? []));
-  }, [profile?.ward_id]);
+    if (!profile) return;
+    const ward = profile.role === "admin" ? null : profile.ward_id;
+    if (ward == null && profile.role !== "admin") return;
+    muqaddamRoster(ward).then(({ data }) => setRoster(data ?? []));
+  }, [profile]);
 
   const urls = useSignedImages(rows);
 
@@ -145,12 +150,16 @@ export default function SupervisorDashboard() {
                         onChange={(e) => setDraft(c.id, { muqaddamId: e.target.value })}
                       >
                         <option value="">Select a muqaddam</option>
-                        {roster.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.full_name || m.email}
-                            {m.identifier ? " - " + m.identifier : ""}
-                          </option>
-                        ))}
+                        {roster
+                          // The database rejects assigning a muqaddam from a
+                          // different ward, so do not offer them.
+                          .filter((m) => m.ward_id === c.ward?.id)
+                          .map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.full_name || m.email}
+                              {m.identifier ? " - " + m.identifier : ""}
+                            </option>
+                          ))}
                       </Select>
                     )}
                   </Field>
@@ -170,9 +179,11 @@ export default function SupervisorDashboard() {
                     Forward
                   </Button>
 
-                  {roster.length === 0 && (
+                  {roster.filter((m) => m.ward_id === c.ward?.id).length === 0 && (
                     <p className="text-xs text-content-subtle">
-                      No muqaddams are assigned to this ward yet.
+                      No active muqaddam is assigned to
+                      {c.ward ? ` ward ${c.ward.ward_no}` : " this ward"} yet.
+                      Assign one in Users first.
                     </p>
                   )}
                 </div>
