@@ -4,27 +4,12 @@ import { useAuth } from "../context/AuthContext";
 import {
   Alert, Badge, Button, Card, CardBody, EmptyState, Field, Input, Select, Spinner,
 } from "../components/ui";
+import {
+  ROLES, GRADES, GRADE_LABELS, label, describe, missingFor,
+  NEEDS_WARD, NEEDS_IDENTIFIER, NEEDS_REPORTS_TO,
+} from "../lib/roles";
 
-const ROLES = ["citizen", "worker", "muqaddam", "si", "dsi", "csi", "admin"];
 const STATUSES = ["pending", "active", "suspended"];
-
-// Mirrors the profiles_staff_attrs_ck constraint. Showing the fields was not
-// enough: a role could be saved with them blank, and the database rejected it
-// with a raw constraint name. missingFor() makes the rule enforceable here.
-const NEEDS_WARD = ["si", "dsi", "csi", "muqaddam"];
-const NEEDS_IDENTIFIER = ["si", "dsi", "csi"];
-const NEEDS_SI_IDENTIFIER = ["muqaddam"];
-
-/** Which required attributes this draft is still missing, by field label. */
-function missingFor(d) {
-  const missing = [];
-  if (NEEDS_WARD.includes(d.role) && !d.ward_id) missing.push("Ward");
-  if (NEEDS_IDENTIFIER.includes(d.role) && !d.identifier?.trim()) missing.push("Identifier");
-  if (NEEDS_SI_IDENTIFIER.includes(d.role) && !d.si_identifier?.trim()) {
-    missing.push("Reports to (SI)");
-  }
-  return missing;
-}
 
 /**
  * User administration. This is the only way to grant a staff role - there is
@@ -67,7 +52,8 @@ export default function AdminUsers() {
     status: r.status,
     ward_id: r.ward_id,
     identifier: r.identifier,
-    si_identifier: r.si_identifier,
+    reports_to: r.reports_to,
+    grade: r.grade,
     ...drafts[r.id],
   });
 
@@ -79,7 +65,7 @@ export default function AdminUsers() {
 
     const missing = missingFor(d);
     if (missing.length) {
-      setError(`${r.email}: a ${d.role} needs ${missing.join(" and ")}.`);
+      setError(`${r.email}: a ${label(d.role)} needs ${missing.join(" and ")}.`);
       return;
     }
 
@@ -93,7 +79,8 @@ export default function AdminUsers() {
       // demoted supervisor keeps a stale ward.
       ward_id: NEEDS_WARD.includes(d.role) ? d.ward_id || null : null,
       identifier: NEEDS_IDENTIFIER.includes(d.role) ? d.identifier || null : null,
-      si_identifier: NEEDS_SI_IDENTIFIER.includes(d.role) ? d.si_identifier || null : null,
+      reports_to: NEEDS_REPORTS_TO.includes(d.role) ? d.reports_to || null : null,
+      grade: d.role === "inspector" ? d.grade || null : null,
     });
 
     setSaving((s) => ({ ...s, [r.id]: false }));
@@ -167,11 +154,12 @@ export default function AdminUsers() {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field label="Role" hint={isSelf ? "You cannot change your own role" : undefined}>
+                    <Field label="Role"
+                           hint={isSelf ? "You cannot change your own role" : describe(d.role)}>
                       {(p) => (
                         <Select {...p} value={d.role} disabled={isSelf}
                                 onChange={(e) => setDraft(r.id, { role: e.target.value })}>
-                          {ROLES.map((x) => <option key={x} value={x}>{x}</option>)}
+                          {ROLES.map((x) => <option key={x} value={x}>{label(x)}</option>)}
                         </Select>
                       )}
                     </Field>
@@ -214,12 +202,26 @@ export default function AdminUsers() {
                       </Field>
                     )}
 
-                    {NEEDS_SI_IDENTIFIER.includes(d.role) && (
-                      <Field label="Reports to (SI)" hint="e.g. SI1"
-                             error={missing.includes("Reports to (SI)") ? "Required for this role" : undefined}>
+                    {NEEDS_REPORTS_TO.includes(d.role) && (
+                      <Field label="Reports to" hint="Identifier of their inspector, e.g. SI1"
+                             error={missing.includes("Reports to") ? "Required for this role" : undefined}>
                         {(p) => (
-                          <Input {...p} value={d.si_identifier ?? ""}
-                                 onChange={(e) => setDraft(r.id, { si_identifier: e.target.value })} />
+                          <Input {...p} value={d.reports_to ?? ""}
+                                 onChange={(e) => setDraft(r.id, { reports_to: e.target.value })} />
+                        )}
+                      </Field>
+                    )}
+
+                    {d.role === "inspector" && (
+                      <Field label="Grade" hint="Seniority only - grants no extra access">
+                        {(p) => (
+                          <Select {...p} value={d.grade ?? ""}
+                                  onChange={(e) => setDraft(r.id, { grade: e.target.value || null })}>
+                            <option value="">Not set</option>
+                            {GRADES.map((g) => (
+                              <option key={g} value={g}>{g} - {GRADE_LABELS[g]}</option>
+                            ))}
+                          </Select>
                         )}
                       </Field>
                     )}

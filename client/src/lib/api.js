@@ -85,7 +85,7 @@ export const wardComplaints = (status) => {
  *  *filed*, which verify-cleanup then rightly refused with "this complaint is
  *  not assigned to you". RLS decides what may be read; the query decides what
  *  this screen is about. */
-export const muqaddamComplaints = (muqaddamId) =>
+export const mukadamComplaints = (muqaddamId) =>
   supabase.from("complaints").select(COMPLAINT_COLS)
     .eq("assigned_muqaddam", muqaddamId)
     .neq("status", "completed")
@@ -94,15 +94,15 @@ export const muqaddamComplaints = (muqaddamId) =>
 /** Muqaddams for one ward, or every ward when wardId is null (admins have no
  *  ward of their own). ward_id is selected so the caller can narrow the list to
  *  a given complaint's ward - the database refuses an assignment across wards. */
-export const muqaddamRoster = (wardId) => {
+export const mukadamRoster = (wardId) => {
   const q = supabase.from("profiles")
-    .select("id, full_name, email, identifier, si_identifier, ward_id")
-    .eq("role", "muqaddam").eq("status", "active");
+    .select("id, full_name, email, identifier, reports_to, ward_id")
+    .eq("role", "mukadam").eq("status", "active");
   return wardId == null ? q : q.eq("ward_id", wardId);
 };
 
-export const workerRoster = (wardId) =>
-  supabase.from("profiles").select("id, full_name, email").eq("role", "worker").eq("ward_id", wardId);
+export const sevakRoster = (wardId) =>
+  supabase.from("profiles").select("id, full_name, email").eq("role", "safai_sevak").eq("ward_id", wardId);
 
 export const forwardComplaint = (id, muqaddamId, instructions) =>
   supabase.from("complaints")
@@ -122,7 +122,7 @@ export const assignWorker = (complaintId, workerId, category) =>
 
 export const allProfiles = () =>
   supabase.from("profiles")
-    .select("id, email, full_name, role, status, ward_id, identifier, si_identifier, created_at")
+    .select("id, email, full_name, role, status, ward_id, identifier, reports_to, grade, created_at")
     .order("created_at", { ascending: false });
 
 export const updateProfile = (id, patch) =>

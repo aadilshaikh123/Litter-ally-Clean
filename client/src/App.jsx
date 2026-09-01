@@ -9,12 +9,12 @@ import AuthCallback from "./pages/AuthCallback";
 import Pending from "./pages/Pending";
 import Report from "./pages/Report";
 import MyReports from "./pages/MyReports";
-import SupervisorDashboard from "./pages/SupervisorDashboard";
-import MuqaddamDashboard from "./pages/MuqaddamDashboard";
+import InspectorDashboard from "./pages/InspectorDashboard";
+import MukadamDashboard from "./pages/MukadamDashboard";
 import WorkerDashboard from "./pages/WorkerDashboard";
 import AdminUsers from "./pages/AdminUsers";
 
-const SUPERVISORS = ["si", "dsi", "csi", "admin"];
+const INSPECTORS = ["inspector", "admin"];
 
 /** Guarded route rendered inside the app shell. */
 const Private = ({ allow, children }) => (
@@ -39,9 +39,9 @@ export default function App() {
           <Route path="/my-reports" element={<Private allow={["citizen", "admin"]}><MyReports /></Private>} />
 
           {/* Staff */}
-          <Route path="/supervisor" element={<Private allow={SUPERVISORS}><SupervisorDashboard /></Private>} />
-          <Route path="/muqaddam" element={<Private allow={["muqaddam", "admin"]}><MuqaddamDashboard /></Private>} />
-          <Route path="/worker" element={<Private allow={["worker", "admin"]}><WorkerDashboard /></Private>} />
+          <Route path="/inspector" element={<Private allow={INSPECTORS}><InspectorDashboard /></Private>} />
+          <Route path="/mukadam" element={<Private allow={["mukadam", "admin"]}><MukadamDashboard /></Private>} />
+          <Route path="/worker" element={<Private allow={["safai_sevak", "admin"]}><WorkerDashboard /></Private>} />
           <Route path="/admin/users" element={<Private allow={["admin"]}><AdminUsers /></Private>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />

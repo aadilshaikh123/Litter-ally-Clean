@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
-  muqaddamComplaints, uploadImage, verifyCleanup, workerRoster, assignWorker,
+  mukadamComplaints, uploadImage, verifyCleanup, sevakRoster, assignWorker,
 } from "../lib/api";
 import { getPosition } from "../lib/geo";
 import { useSignedImages } from "../lib/useSignedImages";
@@ -12,13 +12,13 @@ import {
 } from "../components/ui";
 
 /**
- * Muqaddam view: the complaints assigned to me, and the cleanup proof flow.
+ * Mukadam view: the complaints assigned to me, and the cleanup proof flow.
  *
  * Each card owns its own state object. The old version stored both a string
  * and an object in the same slot, so the loading state never rendered and the
  * failure message never appeared.
  */
-export default function MuqaddamDashboard() {
+export default function MukadamDashboard() {
   const { user, profile } = useAuth();
   const [rows, setRows] = useState([]);
   const [workers, setWorkers] = useState([]);
@@ -29,7 +29,7 @@ export default function MuqaddamDashboard() {
   const load = useCallback(() => {
     if (!user?.id) return;
     setLoading(true);
-    muqaddamComplaints(user.id)
+    mukadamComplaints(user.id)
       .then(({ data, error: err }) => {
         if (err) setError(err.message);
         else {
@@ -44,7 +44,7 @@ export default function MuqaddamDashboard() {
 
   useEffect(() => {
     if (!profile?.ward_id) return;
-    workerRoster(profile.ward_id).then(({ data }) => setWorkers(data ?? []));
+    sevakRoster(profile.ward_id).then(({ data }) => setWorkers(data ?? []));
   }, [profile?.ward_id]);
 
   const urls = useSignedImages(rows);
@@ -123,14 +123,14 @@ export default function MuqaddamDashboard() {
               <ComplaintCard key={c.id} complaint={c} imageUrl={urls[c.image_path]}>
                 <div className="space-y-3 border-t border-line pt-3">
                   {workers.length > 0 && (
-                    <Field label="Assign a worker" hint="Optional">
+                    <Field label="Assign a Safai Sevak" hint="Optional">
                       {(p) => (
                         <Select
                           {...p}
                           defaultValue=""
                           onChange={(e) => assign(c.id, e.target.value)}
                         >
-                          <option value="">Select a worker</option>
+                          <option value="">Select a Safai Sevak</option>
                           {workers.map((w) => (
                             <option key={w.id} value={w.id}>
                               {w.full_name || w.email}
@@ -141,7 +141,7 @@ export default function MuqaddamDashboard() {
                     </Field>
                   )}
 
-                  {card.assigned && <Badge tone="brand">Worker assigned</Badge>}
+                  {card.assigned && <Badge tone="brand">Safai Sevak assigned</Badge>}
 
                   <ImageCapture
                     label="Cleanup proof"

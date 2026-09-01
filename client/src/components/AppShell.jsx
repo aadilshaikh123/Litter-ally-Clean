@@ -8,14 +8,12 @@ const NAV_BY_ROLE = {
     { to: "/report", label: "Report" },
     { to: "/my-reports", label: "My reports" },
   ],
-  worker: [{ to: "/worker", label: "My tasks" }],
-  muqaddam: [{ to: "/muqaddam", label: "Assigned" }],
-  si: [{ to: "/supervisor", label: "Ward queue" }],
-  dsi: [{ to: "/supervisor", label: "Ward queue" }],
-  csi: [{ to: "/supervisor", label: "Ward queue" }],
+  safai_sevak: [{ to: "/worker", label: "My tasks" }],
+  mukadam: [{ to: "/mukadam", label: "Assigned" }],
+  inspector: [{ to: "/inspector", label: "Ward queue" }],
   admin: [
     { to: "/admin/users", label: "Users" },
-    { to: "/supervisor", label: "Complaints" },
+    { to: "/inspector", label: "Complaints" },
   ],
 };
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { wardComplaints, muqaddamRoster, forwardComplaint } from "../lib/api";
+import { label } from "../lib/roles";
+import { wardComplaints, mukadamRoster, forwardComplaint } from "../lib/api";
 import { useSignedImages } from "../lib/useSignedImages";
 import ComplaintCard from "../components/ComplaintCard";
 import {
@@ -22,7 +23,7 @@ const TABS = [
  * `forwardedBySI`, a field that was never on the schema, so it always returned
  * an empty list.
  */
-export default function SupervisorDashboard() {
+export default function InspectorDashboard() {
   const { profile } = useAuth();
   const [tab, setTab] = useState("pending");
   const [rows, setRows] = useState([]);
@@ -59,7 +60,7 @@ export default function SupervisorDashboard() {
     if (!profile) return;
     const ward = profile.role === "admin" ? null : profile.ward_id;
     if (ward == null && profile.role !== "admin") return;
-    muqaddamRoster(ward).then(({ data }) => setRoster(data ?? []));
+    mukadamRoster(ward).then(({ data }) => setRoster(data ?? []));
   }, [profile]);
 
   const urls = useSignedImages(rows);
@@ -70,7 +71,7 @@ export default function SupervisorDashboard() {
   const forward = async (id) => {
     const draft = drafts[id] ?? {};
     if (!draft.muqaddamId) {
-      setError("Choose a muqaddam to forward to.");
+      setError("Choose a Mukadam to forward to.");
       return;
     }
 
@@ -95,7 +96,7 @@ export default function SupervisorDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-content">Ward queue</h1>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-content-muted">
-          <span>Signed in as {profile?.identifier ?? profile?.role}</span>
+          <span>Signed in as {profile?.identifier ?? label(profile?.role)}</span>
           {profile?.ward_id == null && <Badge tone="warn">No ward assigned</Badge>}
         </p>
       </div>
@@ -142,14 +143,14 @@ export default function SupervisorDashboard() {
             >
               {tab === "pending" && (
                 <div className="space-y-2 border-t border-line pt-3">
-                  <Field label="Forward to muqaddam">
+                  <Field label="Forward to Mukadam">
                     {(p) => (
                       <Select
                         {...p}
                         value={drafts[c.id]?.muqaddamId ?? ""}
                         onChange={(e) => setDraft(c.id, { muqaddamId: e.target.value })}
                       >
-                        <option value="">Select a muqaddam</option>
+                        <option value="">Select a Mukadam</option>
                         {roster
                           // The database rejects assigning a muqaddam from a
                           // different ward, so do not offer them.
@@ -181,7 +182,7 @@ export default function SupervisorDashboard() {
 
                   {roster.filter((m) => m.ward_id === c.ward?.id).length === 0 && (
                     <p className="text-xs text-content-subtle">
-                      No active muqaddam is assigned to
+                      No active Mukadam is assigned to
                       {c.ward ? ` ward ${c.ward.ward_no}` : " this ward"} yet.
                       Assign one in Users first.
                     </p>

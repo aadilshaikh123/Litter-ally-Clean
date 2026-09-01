@@ -3,16 +3,12 @@ import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
 
-export const STAFF_ROLES = ["si", "dsi", "csi", "muqaddam", "worker", "admin"];
-
 /** Where each role lands after sign-in. */
 export const HOME_FOR_ROLE = {
   citizen: "/report",
-  worker: "/worker",
-  muqaddam: "/muqaddam",
-  si: "/supervisor",
-  dsi: "/supervisor",
-  csi: "/supervisor",
+  safai_sevak: "/worker",
+  mukadam: "/mukadam",
+  inspector: "/inspector",
   admin: "/admin/users",
 };
 
@@ -25,7 +21,7 @@ export function AuthProvider({ children }) {
     if (!userId) return setProfile(null);
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, full_name, avatar_url, role, status, ward_id, identifier, si_identifier")
+      .select("id, email, full_name, avatar_url, role, status, ward_id, identifier, reports_to, grade")
       .eq("id", userId)
       .maybeSingle();
     setProfile(data ?? null);
