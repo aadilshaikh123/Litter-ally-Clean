@@ -1,0 +1,7 @@
+.vercel
+
+# Local env files. .env.example is committed on purpose, so do not blanket-ignore
+# every .env* - that would stop it being re-added after a fresh clone.
+.env
+.env.local
+.env.*.local

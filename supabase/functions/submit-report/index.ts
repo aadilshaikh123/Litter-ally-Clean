@@ -3,12 +3,15 @@
 // No client role has an INSERT policy on public.complaints, so the CLIP
 // threshold below cannot be bypassed by talking to PostgREST directly.
 
-import { adminClient, callerId, corsHeaders, json, ownsPath } from "../_shared/http.ts";
+import { adminClient, callerId, ownsPath, responder } from "../_shared/http.ts";
 import { classify } from "../_shared/clip.ts";
 import { REPORT_MIN_GARBAGE, isLitter } from "../_shared/thresholds.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  // CORS is computed per request so the allowed origin can be echoed back.
+  const { cors, json } = responder(req);
+
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   const uid = await callerId(req);

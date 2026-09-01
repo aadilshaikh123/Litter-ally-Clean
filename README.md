@@ -121,11 +121,23 @@ live.
 
 ## Deployment status
 
-The database is provisioned on project `chjwumixiaazupjznggc` and verified live:
+**Live at https://litter-ally-clean.vercel.app**
+
+| Component | Where |
+|---|---|
+| Web client | Vercel `litter-ally-clean` (team `exhibition5`) |
+| Backend | Supabase `chjwumixiaazupjznggc` |
+| Classifier | HF Space `Lucitrippin/litter-ally-clip` (ZeroGPU) |
+
+Vercel Deployment Protection is on, so preview URLs sit behind Vercel SSO; the
+production alias is public.
+
+Verified live:
 
 | | |
 |---|---|
 | Migrations applied | 15 |
+| Client | deployed, SPA rewrites verified |
 | Wards | 99 (58 named for 2022, 41 numbered for 2025) |
 | Zones | 1,583 synthetic hex beats, all flagged |
 | Storage buckets | `reports`, `cleanup-proofs` (both private) |

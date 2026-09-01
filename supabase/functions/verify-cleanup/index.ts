@@ -1,12 +1,15 @@
 // Muqaddam cleanup proof. Two independent gates: the photo must look clean,
 // and it must have been taken near the original complaint.
 
-import { adminClient, callerId, corsHeaders, json, ownsPath } from "../_shared/http.ts";
+import { adminClient, callerId, ownsPath, responder } from "../_shared/http.ts";
 import { classify } from "../_shared/clip.ts";
 import { CLEANUP_MAX_DISTANCE_M, CLEANUP_MAX_GARBAGE, isClean } from "../_shared/thresholds.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  // CORS is computed per request so the allowed origin can be echoed back.
+  const { cors, json } = responder(req);
+
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   const uid = await callerId(req);
