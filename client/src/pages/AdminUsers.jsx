@@ -8,11 +8,23 @@ import {
 const ROLES = ["citizen", "worker", "muqaddam", "si", "dsi", "csi", "admin"];
 const STATUSES = ["pending", "active", "suspended"];
 
-// Mirrors the profiles_staff_attrs_ck constraint, so the form asks for what
-// the database will insist on rather than failing on save.
+// Mirrors the profiles_staff_attrs_ck constraint. Showing the fields was not
+// enough: a role could be saved with them blank, and the database rejected it
+// with a raw constraint name. missingFor() makes the rule enforceable here.
 const NEEDS_WARD = ["si", "dsi", "csi", "muqaddam"];
 const NEEDS_IDENTIFIER = ["si", "dsi", "csi"];
 const NEEDS_SI_IDENTIFIER = ["muqaddam"];
+
+/** Which required attributes this draft is still missing, by field label. */
+function missingFor(d) {
+  const missing = [];
+  if (NEEDS_WARD.includes(d.role) && !d.ward_id) missing.push("Ward");
+  if (NEEDS_IDENTIFIER.includes(d.role) && !d.identifier?.trim()) missing.push("Identifier");
+  if (NEEDS_SI_IDENTIFIER.includes(d.role) && !d.si_identifier?.trim()) {
+    missing.push("Reports to (SI)");
+  }
+  return missing;
+}
 
 /**
  * User administration. This is the only way to grant a staff role - there is
@@ -64,6 +76,13 @@ export default function AdminUsers() {
 
   const save = async (r) => {
     const d = draftFor(r);
+
+    const missing = missingFor(d);
+    if (missing.length) {
+      setError(`${r.email}: a ${d.role} needs ${missing.join(" and ")}.`);
+      return;
+    }
+
     setSaving((s) => ({ ...s, [r.id]: true }));
     setError(null);
 
@@ -125,6 +144,7 @@ export default function AdminUsers() {
             // so the database refuses it. Reflect that here rather than letting
             // the save fail.
             const isSelf = r.id === user?.id;
+            const missing = missingFor(d);
 
             return (
               <Card key={r.id}>
@@ -166,7 +186,8 @@ export default function AdminUsers() {
                     </Field>
 
                     {NEEDS_WARD.includes(d.role) && (
-                      <Field label="Ward">
+                      <Field label="Ward"
+                             error={missing.includes("Ward") ? "Required for this role" : undefined}>
                         {(p) => (
                           <Select {...p} value={d.ward_id ?? ""}
                                   onChange={(e) => setDraft(r.id, {
@@ -184,7 +205,8 @@ export default function AdminUsers() {
                     )}
 
                     {NEEDS_IDENTIFIER.includes(d.role) && (
-                      <Field label="Identifier" hint="e.g. SI1">
+                      <Field label="Identifier" hint="e.g. SI1"
+                             error={missing.includes("Identifier") ? "Required for this role" : undefined}>
                         {(p) => (
                           <Input {...p} value={d.identifier ?? ""}
                                  onChange={(e) => setDraft(r.id, { identifier: e.target.value })} />
@@ -193,7 +215,8 @@ export default function AdminUsers() {
                     )}
 
                     {NEEDS_SI_IDENTIFIER.includes(d.role) && (
-                      <Field label="Reports to (SI)" hint="e.g. SI1">
+                      <Field label="Reports to (SI)" hint="e.g. SI1"
+                             error={missing.includes("Reports to (SI)") ? "Required for this role" : undefined}>
                         {(p) => (
                           <Input {...p} value={d.si_identifier ?? ""}
                                  onChange={(e) => setDraft(r.id, { si_identifier: e.target.value })} />
@@ -203,10 +226,17 @@ export default function AdminUsers() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button size="sm" disabled={!dirty} loading={saving[r.id]}
-                            onClick={() => save(r)}>
-                      Save changes
-                    </Button>
+                    <div className="flex items-center gap-3">
+                      {missing.length > 0 && (
+                        <span className="text-xs text-content-subtle">
+                          Needs {missing.join(" and ")}
+                        </span>
+                      )}
+                      <Button size="sm" disabled={!dirty || missing.length > 0}
+                              loading={saving[r.id]} onClick={() => save(r)}>
+                        Save changes
+                      </Button>
+                    </div>
                   </div>
                 </CardBody>
               </Card>
