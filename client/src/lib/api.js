@@ -77,9 +77,19 @@ export const wardComplaints = (status) => {
   return q;
 };
 
-export const muqaddamComplaints = () =>
+/** Complaints assigned to this muqaddam.
+ *
+ *  The assigned_muqaddam filter is explicit and load-bearing. RLS grants read
+ *  through several policies - own reports, assigned, ward staff, worker - so
+ *  relying on it to scope this list surfaced complaints the muqaddam merely
+ *  *filed*, which verify-cleanup then rightly refused with "this complaint is
+ *  not assigned to you". RLS decides what may be read; the query decides what
+ *  this screen is about. */
+export const muqaddamComplaints = (muqaddamId) =>
   supabase.from("complaints").select(COMPLAINT_COLS)
-    .neq("status", "completed").order("created_at", { ascending: false });
+    .eq("assigned_muqaddam", muqaddamId)
+    .neq("status", "completed")
+    .order("created_at", { ascending: false });
 
 /** Muqaddams for one ward, or every ward when wardId is null (admins have no
  *  ward of their own). ward_id is selected so the caller can narrow the list to

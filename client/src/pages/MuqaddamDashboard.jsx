@@ -27,8 +27,9 @@ export default function MuqaddamDashboard() {
   const [cards, setCards] = useState({});
 
   const load = useCallback(() => {
+    if (!user?.id) return;
     setLoading(true);
-    muqaddamComplaints()
+    muqaddamComplaints(user.id)
       .then(({ data, error: err }) => {
         if (err) setError(err.message);
         else {
@@ -37,7 +38,7 @@ export default function MuqaddamDashboard() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.id]);
 
   useEffect(load, [load]);
 
