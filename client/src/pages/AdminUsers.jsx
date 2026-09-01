@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { allProfiles, updateProfile, listWards } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import {
   Alert, Badge, Button, Card, CardBody, EmptyState, Field, Input, Select, Spinner,
 } from "../components/ui";
@@ -22,6 +23,7 @@ const NEEDS_SI_IDENTIFIER = ["muqaddam"];
  *   update public.profiles set role = 'admin' where email = 'you@example.com';
  */
 export default function AdminUsers() {
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +121,10 @@ export default function AdminUsers() {
           {visible.map((r) => {
             const d = draftFor(r);
             const dirty = !!drafts[r.id];
+            // Changing your own role would revoke access to this very screen,
+            // so the database refuses it. Reflect that here rather than letting
+            // the save fail.
+            const isSelf = r.id === user?.id;
 
             return (
               <Card key={r.id}>
@@ -128,6 +134,7 @@ export default function AdminUsers() {
                       {r.full_name || "(no name)"}
                     </span>
                     <span className="text-sm text-content-muted">{r.email}</span>
+                    {isSelf && <Badge tone="info">you</Badge>}
                     <Badge
                       tone={
                         r.status === "active" ? "brand"
@@ -140,18 +147,18 @@ export default function AdminUsers() {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field label="Role">
+                    <Field label="Role" hint={isSelf ? "You cannot change your own role" : undefined}>
                       {(p) => (
-                        <Select {...p} value={d.role}
+                        <Select {...p} value={d.role} disabled={isSelf}
                                 onChange={(e) => setDraft(r.id, { role: e.target.value })}>
                           {ROLES.map((x) => <option key={x} value={x}>{x}</option>)}
                         </Select>
                       )}
                     </Field>
 
-                    <Field label="Status">
+                    <Field label="Status" hint={isSelf ? "You cannot change your own status" : undefined}>
                       {(p) => (
-                        <Select {...p} value={d.status}
+                        <Select {...p} value={d.status} disabled={isSelf}
                                 onChange={(e) => setDraft(r.id, { status: e.target.value })}>
                           {STATUSES.map((x) => <option key={x} value={x}>{x}</option>)}
                         </Select>

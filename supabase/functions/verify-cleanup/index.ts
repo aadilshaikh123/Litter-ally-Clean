@@ -40,12 +40,17 @@ Deno.serve(async (req) => {
     return json({ error: "already completed" }, 409);
   }
 
+  // Parameters are prefixed because public.complaints has `lat`/`lng` columns:
+  // unprefixed names were shadowed by them inside the function, which made it
+  // measure the complaint's distance from itself and always return 0.
   const { data: distance, error: distErr } = await db.rpc("cleanup_distance_m", {
-    complaint: complaint_id, lat, lng,
+    p_complaint: complaint_id, p_lat: lat, p_lng: lng,
   });
   if (distErr) return json({ error: "distance check failed", detail: distErr.message }, 500);
 
-  const locationOk = distance !== null && distance <= CLEANUP_MAX_DISTANCE_M;
+  // Fail closed: a null distance means the check did not run, which must never
+  // read as "close enough".
+  const locationOk = typeof distance === "number" && distance <= CLEANUP_MAX_DISTANCE_M;
 
   const { data: blob, error: dlErr } = await db.storage
     .from("cleanup-proofs").download(storage_path);

@@ -125,12 +125,15 @@ The database is provisioned on project `chjwumixiaazupjznggc` and verified live:
 
 | | |
 |---|---|
-| Migrations applied | 12 |
+| Migrations applied | 15 |
 | Wards | 99 (58 named for 2022, 41 numbered for 2025) |
 | Zones | 1,583 synthetic hex beats, all flagged |
 | Storage buckets | `reports`, `cleanup-proofs` (both private) |
 | Geo assertions | pass |
 | Security assertions | 14/14 pass |
+| Citizen report flow | verified live (94.9% garbage, ward 24 Magarpatta) |
+| SI -> muqaddam -> worker chain | verified live |
+| Cleanup verification gates | verified live (distance + cleanliness) |
 
 ### Accepted linter warnings
 
@@ -182,11 +185,18 @@ project's Supabase callback URL.
 cd clip-service && pytest tests -q            # classifier behaviour
 psql "$DATABASE_URL" -f supabase/tests/01_geo_lookup.sql
 psql "$DATABASE_URL" -f supabase/tests/02_security.sql
+psql "$DATABASE_URL" -f supabase/tests/04_workflow.sql
 ```
 
 `01_geo_lookup.sql` pins the ward lookup to the two coordinates hardcoded in
 the old Flask code, which resolve to "Sukhsagarnagar - Rajiv Gandhinagar" and
 "Upper Super Indiranagar" respectively.
+
+`04_workflow.sql` covers three bugs that reached the live system and were only
+found by driving it: `cleanup_distance_m` parameter shadowing (which made the
+30m proximity gate always pass), mutual RLS recursion between `complaints` and
+`complaint_assignments` (which broke worker assignment entirely), and admin
+self-demotion lockout.
 
 `02_security.sql` is the regression test for the authorization model: a citizen
 cannot read another citizen's complaint, cannot insert a complaint directly,
